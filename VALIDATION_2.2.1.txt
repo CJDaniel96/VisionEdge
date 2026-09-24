@@ -1,0 +1,17 @@
+VisionEdge 2.2.1 validation summary
+
+PASS
+- Python compileall
+- JavaScript syntax: all static/*.js
+- Inline JavaScript syntax: edge_dashboard.html, flow_studio.html
+- i18n_static_test.py: 4 languages, visible-string coverage, persistence, no login
+- Runtime source search: /api/backend-login and hard-coded admin login absent
+
+NOT RE-RUN IN THIS BUILD ENVIRONMENT
+- Flask/OpenCV integration/regression suites (runtime dependencies are not installed and the environment has no package-network access)
+- Qualcomm QTI hardware camera / 4K / long-duration recording validation
+
+Recommended on target device
+- Run the original VisionEdge 2.2.0 regression suite
+- Click-test zh-Hant / zh-Hans / en / es on /edge and /flow-studio
+- Verify long English/Spanish strings at the actual production display resolution

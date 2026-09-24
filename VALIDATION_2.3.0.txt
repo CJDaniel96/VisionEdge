@@ -1,0 +1,14 @@
+Automated validation — 2026-09-24
+packaging_cycle_test.py: PASS
+packaging_integration_test.py: PASS
+edge_smoke_test.py: PASS
+edge_consistency_test.py: PASS
+visionedge_regression_test.py: PASS
+flow_designer_test.py: PASS
+label_flow_regression_test.py: PASS
+live_flow_graph_test.py: PASS
+inspection_history_test.py: PASS
+rule_group_roundtrip_test.py: PASS
+i18n_static_test.py: PASS
+Browser: synthetic live cycle, setup, fixture controls, English translation, event evidence verified.
+Hardware: field camera and QTI not tested.
