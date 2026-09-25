@@ -1299,12 +1299,12 @@ def _run_multi_sample_inference(frame: np.ndarray, cache: TemplateCache, method:
                         sx1 = max(0, ex - margin); sy1 = max(0, ey - margin)
                         sx2 = min(sw, ex + ew + margin); sy2 = min(sh, ey + eh + margin)
                         cv2.rectangle(vis, (sx1, sy1), (sx2, sy2), (180, 180, 60), 1)
-                    cv2.rectangle(vis, (ex, ey), (ex + ew, ey + eh), (255, 200, 0), 1)
+                    cv2.rectangle(vis, (ex, ey), (ex + ew, ey + eh), (255, 200, 0), 2)
 
                 # 2) actual best-match box: this is where template matching found the sample in the current frame.
                 if r.get('match_loc') and r.get('match_size'):
                     tl = tuple(r['match_loc']); tw, th = r['match_size']
-                    cv2.rectangle(vis, tl, (tl[0]+tw, tl[1]+th), color, 2)
+                    cv2.rectangle(vis, tl, (tl[0]+tw, tl[1]+th), color, 4)
                     text_x, text_y_base = tl[0], tl[1]
                 else:
                     # Still label the configured box if matching failed before a location could be produced.
@@ -1393,11 +1393,11 @@ def run_inference(
 
         if vis is not None:
             color = (0, 255, 80) if passed else (0, 60, 255)
-            cv2.rectangle(vis, tl, (tl[0]+tw, tl[1]+th), color, 2)
+            cv2.rectangle(vis, tl, (tl[0]+tw, tl[1]+th), color, 4)
             cv2.putText(vis, f'{label} {score:.3f}',
                         (tl[0], max(tl[1]-6, 12)),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.55, color, 1, cv2.LINE_AA)
-            cv2.rectangle(vis, (ex, ey), (ex+ew, ey+eh), (255, 200, 0), 1)
+            cv2.rectangle(vis, (ex, ey), (ex+ew, ey+eh), (255, 200, 0), 2)
 
         results.append({key: r[key] for key in
                         ('id', 'label', 'score', 'threshold', 'pass', 'match_loc', 'match_size')})

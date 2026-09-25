@@ -53,8 +53,8 @@ button,select,input{font:inherit}button{cursor:pointer}button:disabled{cursor:no
 
 @media(max-width:500px){.topbar>.chip{display:none}.mediaTable th,.mediaTable td{padding:8px}.mediaName{max-width:125px}.mini{padding:6px}.viewerTools{flex-wrap:wrap}}
 </style>
-<link rel="stylesheet" href="/static/apple.css?v=2.4.5">
-<link rel="stylesheet" href="/static/primary_nav.css?v=2.4.5"><link rel="stylesheet" href="/static/notice.css?v=1"><link rel="stylesheet" href="/static/live_detail.css?v=1"></head>
+<link rel="stylesheet" href="/static/apple.css?v=2.4.9-jetson1">
+<link rel="stylesheet" href="/static/primary_nav.css?v=2.4.9-jetson1"><link rel="stylesheet" href="/static/notice.css?v=1"><link rel="stylesheet" href="/static/live_detail.css?v=2.4.9-jetson1"></head>
 <body>
 <header class="topbar">
   <div class="brand">VisionEdge <small>產線視覺檢測</small></div>
@@ -87,8 +87,8 @@ button,select,input{font:inherit}button{cursor:pointer}button:disabled{cursor:no
           <div class="viewerTools">
             <span class="toolLabel">顯示內容</span>
             <div class="segment" aria-label="Live view source">
-              <button id="viewRaw" class="on" onclick="setView('raw')">原始畫面</button>
-              <button id="viewResult" onclick="setView('result')">檢測結果</button>
+              <button id="viewRaw" onclick="setView('raw')">原始畫面</button>
+              <button id="viewResult" class="on" onclick="setView('result')">檢測結果</button>
             </div>
           </div>
           <button class="action" id="expandLive" onclick="toggleLiveExpanded()" aria-expanded="false">放大畫面</button>
@@ -266,8 +266,8 @@ button,select,input{font:inherit}button{cursor:pointer}button:disabled{cursor:no
 
 
 
-<script src="/static/visionedge_i18n.js?v=2.4.8"></script>
-<script src="/static/latest_preview.js?v=2"></script><script src="/static/notice.js?v=2"></script><script src="/static/live_detail.js?v=1"></script>
+<script src="/static/visionedge_i18n.js?v=2.4.9-jetson1"></script>
+<script src="/static/latest_preview.js?v=2"></script><script src="/static/notice.js?v=2"></script><script src="/static/live_detail.js?v=2.4.9-jetson1"></script>
 <script>
 const $=id=>document.getElementById(id), A='/api/edge';
 const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
@@ -297,6 +297,7 @@ async function toggleRecording(){if(recordBusy)return;recordBusy=true;renderStat
 
 function stateClass(status){status=String(status||'').toUpperCase();if(status==='LIVE'||status==='ON'||status==='RECORDING'||status==='PASS'||status==='COMPLETE')return'good';if(status==='ERROR'||status==='ALARM')return'bad';if(status==='STARTING'||status==='STOPPING'||status==='RECONNECTING'||status==='RUNNING'||status==='PREVIEW')return'warn';return'idle'}
 function renderStatus(d={}){
+  const previousView=effectiveLiveView();
   lastStatus=d;
   const running=!!d.running,recording=!!d.recording,ready=!!d.inference_ready,hasFrame=!!d.frame_fresh,configured=Number(d.product_id||0)>0;
   const names={STOPPED:'已停止',STARTING:'啟動中',STOPPING:'停止中',LIVE:'運作中',RECONNECTING:'重新連線中',ERROR:'異常',OFFLINE:'連線中斷'};
@@ -315,7 +316,7 @@ function renderStatus(d={}){
   $('recTimer').textContent=recSince?fmtDuration((Date.now()-recSince)/1000):'—';
   $('viewResult').disabled=!ready;
   $('viewRaw').classList.toggle('on',viewMode==='raw');$('viewResult').classList.toggle('on',viewMode==='result');
-  updateSnapshotLabel();renderLabelScores(d);$('expandLive').disabled=!hasFrame&&!document.querySelector('.camera-card').classList.contains('live-expanded');
+  updateSnapshotLabel();if(previousView!==effectiveLiveView()&&hasFrame)reloadStream();renderLabelScores(d);$('expandLive').disabled=!hasFrame&&!document.querySelector('.camera-card').classList.contains('live-expanded');
   const cam=$('cameraToggle');cam.disabled=cameraBusy||['STARTING','STOPPING','OFFLINE'].includes(status)||recording;
   cam.textContent=running?'■ 停止相機':'▶ 啟動相機';cam.className='action wide '+(running?'danger':'primary');$('cameraQuickState').textContent=label;
   $('cameraHint').textContent=recording?'停止錄影後，即可停止相機或套用設定。':hasFrame?'相機已就緒，可以拍照或錄影。':label;
@@ -334,7 +335,7 @@ function renderStatus(d={}){
   $('pendingDefinition').style.display=d.definition_pending?'flex':'none';$('applyDefinitionBtn').disabled=recording||cameraBusy;
   const notice=d.error||d.warning||(d.storage_ok===false?'儲存空間不足，請整理照片與錄影。':'');$('runtimeNotice').textContent=notice;$('runtimeNotice').style.display=notice?'block':'none';
   if(ready&&d.sop?.alarm?.active&&d.sop?.config?.web_alarm_enabled!==false)playAlarm(d.sop.alarm.seq);
-  renderPackaging(d);
+  renderPackaging(d);updateFloatingFlow(d);
 }
 let alarmAudio=null,lastAlarmSeq=null;
 document.addEventListener('click',()=>{if(!alarmAudio){try{alarmAudio=new(window.AudioContext||window.webkitAudioContext)()}catch{}}if(alarmAudio?.state==='suspended')alarmAudio.resume().catch(()=>{})});
