@@ -20,7 +20,7 @@ function workspacePayload(){
 function workspacePending(){return S.editMode&&JSON.stringify(workspacePayload())!==workspaceBaseline;}
 function workspaceDirtyUI(){
  document.getElementById('modeLabel').textContent=S.editMode?(workspacePending()?'編輯中 · 尚未儲存':'編輯模式'):'瀏覽模式';
- for(const id of ['workspaceTestBtn','workspaceApplyBtn'])document.getElementById(id).disabled=S.editMode||!S.selectedPid;
+ for(const id of ['workspaceTestBtn','workspaceApplyBtn','imageTestBtn'])document.getElementById(id).disabled=S.editMode||!S.selectedPid;
 }
 function workspaceLock(b){workspaceBusy=b;document.getElementById('app').inert=b;document.querySelectorAll('#cameraDialog button,#cameraDialog select,#cameraDialog input').forEach(e=>{if(b){e.dataset.wasDisabled=String(e.disabled);e.disabled=true}else{e.disabled=e.dataset.wasDisabled==='true'}})}
 async function workspaceInit(){

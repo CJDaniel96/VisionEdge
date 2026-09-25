@@ -7,6 +7,42 @@ def version(row):
  return hashlib.sha256(json.dumps(dict(row),sort_keys=True,default=str).encode()).hexdigest()[:24]
 
 def register(app,base,edge):
+ @app.route('/api/products/<int:pid>/label-library/<int:rid>/image-test',methods=['POST'])
+ def test_label_image(pid,rid):
+  # Read-only diagnostics: no camera, SOP progression or inspection-history writes.
+  body=request.get_json(silent=True) or {}
+  encoded=body.get('image_b64') if isinstance(body,dict) else None
+  if not isinstance(encoded,str) or not encoded or len(encoded)>28_000_000:
+   return jsonify(error='請提供 20 MB 以下的測試圖片'),400
+  try:frame=base.b64_to_cv2(encoded)
+  except Exception:frame=None
+  if frame is None:return jsonify(error='無法讀取圖片，請使用 PNG 或 JPEG'),400
+  if frame.shape[0]*frame.shape[1]>25_000_000:return jsonify(error='圖片超過 2500 萬像素'),400
+  db=base.get_db()
+  try:
+   row=db.execute('''SELECT r.*,COALESCE(g.thumb_b64,p.reference_img_b64) AS source_frame
+     FROM regions r JOIN products p ON p.id=r.product_id
+     LEFT JOIN capture_groups g ON g.id=r.capture_group_id
+     WHERE r.product_id=? AND r.id=?''',(pid,rid)).fetchone()
+   if row is None:return jsonify(error='找不到 Label'),404
+   reg=dict(row)
+  finally:db.close()
+  source=base.b64_to_cv2(reg.get('source_frame') or '')
+  if source is not None and source.shape[:2]!=frame.shape[:2]:
+   return jsonify(error=f'測試圖片尺寸須與取樣畫面一致：{source.shape[1]}×{source.shape[0]}；目前為 {frame.shape[1]}×{frame.shape[0]}'),400
+  tpl=base.b64_to_cv2(reg.get('template_b64') or '')
+  if tpl is None:return jsonify(error='無法讀取樣板'),400
+  reg['tpl_gray']=cv2.cvtColor(tpl,cv2.COLOR_BGR2GRAY)
+  reg['th'],reg['tw']=reg['tpl_gray'].shape
+  if edge._method()==cv2.TM_CCOEFF_NORMED and float(reg['tpl_gray'].std())<1e-6:
+   return jsonify(error='樣板沒有明暗特徵，無法可靠比對；請重新標記包含邊緣或紋理的區域'),400
+  gray=cv2.cvtColor(frame,cv2.COLOR_BGR2GRAY)
+  result=base.vc._match_one_template(gray,*gray.shape,reg,edge._method())
+  if result.get('match_loc'):
+   x,y=result['match_loc'];w,h=result['match_size']
+   cv2.rectangle(frame,(x,y),(x+w,y+h),(50,170,30) if result['pass'] else (40,40,220),2)
+  return jsonify(result=result,image_b64=base.cv2_to_b64(frame),sample_hint=reg.get('sample_hint','OK'),
+    search_margin=reg.get('search_margin',0),scope='single_label_only')
  @app.route('/template-studio')
  def template_studio_page():return send_from_directory('static','template_workspace.html')
 
