@@ -797,6 +797,36 @@ class QtiGstCameraBackend(CameraBackend):
         if self._bus_thread and self._bus_thread.is_alive():
             self._bus_thread.join(timeout=1.0)
         self._bus_thread = None
+        self.frame_sink = None
+        self.h264_sink = None
+        self.encoder = None
+
+    def apply_controls(self, mode, values):
+        from qti_controls import normalize, apply, SPECS
+        mode, values = normalize(mode, values)
+        if mode == 'off':
+            return {'applied': False}  # Device defaults require a fresh pipeline.
+        source = self.pipeline.get_by_name('camsrc') if self.pipeline else None
+        if source is None: raise RuntimeError('QTI camera source unavailable')
+        requested = {'white_balance_mode': values.get('white_balance_mode', 0)} if mode == 'safe' else values
+        changed, old = {}, {}
+        mutable = getattr(Gst, 'PARAM_MUTABLE_PLAYING', 0)
+        for key, value in requested.items():
+            prop = SPECS[key][0]
+            spec = source.find_property(prop)
+            if spec is None: raise RuntimeError('QTI 不支援相機控制: '+key)
+            current = int(source.get_property(prop))
+            if current != value:
+                if not mutable or not int(spec.flags) & int(mutable): return {'applied': False}
+                changed[key] = value; old[key] = current
+        try:
+            report = apply(source, 'manual', changed)
+        except Exception:
+            for key, value in old.items(): source.set_property(SPECS[key][0], value)
+            raise
+        report['mode'] = mode
+        self.camera_controls = report
+        return {'applied': True, 'report': report, 'previous_values': old}
 
     def status(self) -> Dict[str, Any]:
         out = super().status()
@@ -1081,7 +1111,8 @@ class EdgeRuntime:
         # OpenCV only when the QTI plugin is not present at all (PC/dev hosts).
         if requested in ('auto', 'qti') and qti_available:
             try:
-                b = QtiGstCameraBackend(self.cfg)
+                from qti_process import QtiProcessBackend
+                b = QtiProcessBackend(self.cfg)
                 b.start()
                 self.actual_backend = 'qti'
                 return b
@@ -1089,8 +1120,7 @@ class EdgeRuntime:
                 self.actual_backend = 'qti'
                 hint = (
                     f'QTI camera failed to start: {exc}. '
-                    f'Camera {self.cfg.camera} may already be in use by another '
-                    'VisionEdge/SmartCam process or service.'
+                    f'請確認設備端 QMMF 相機服務可用，且 camera {self.cfg.camera} 未被其他程式占用。'
                 )
                 self.last_warning = ''
                 raise RuntimeError(hint) from exc
@@ -1173,6 +1203,22 @@ class EdgeRuntime:
             candidate.update(data)
         except (ValueError,TypeError,OverflowError) as exc:
             return {'success':False,'error':str(exc)}
+        changed = {key for key in vars(candidate) if getattr(candidate,key) != getattr(self.cfg,key)}
+        controls_only = changed <= {'camera_controls_mode','camera_control_values'}
+        if was_running and self.actual_backend == 'qti' and controls_only and self.backend:
+            try:
+                applied = self.backend.apply_controls(candidate.camera_controls_mode, candidate.camera_control_values)
+                if applied.get('applied'):
+                    try: candidate.save(self.config_path)
+                    except Exception:
+                        self.backend.apply_controls('manual', applied['previous_values'])
+                        raise
+                    with self.lock:
+                        self.cfg = candidate
+                        self.soft_rec.cfg = candidate
+                    return {'success': True, 'config': candidate.public(), 'restart_required': False, 'applied_live': True}
+            except Exception as exc:
+                return {'success': False, 'error': str(exc)}
         if was_running:
             stopped = self.stop()
             if not stopped.get('success'):

@@ -22,11 +22,11 @@ async function loadCamera(){
 }
 async function refreshCamera(){if(busy)return;if(dirty()&&!await ask('重新讀取會放棄尚未儲存的修改，確定繼續？'))return;busy=true;renderEnabled();try{await loadCamera()}catch(e){say(e.message)}finally{busy=false;renderEnabled()}}
 async function discardCamera(){await refreshCamera()}
-async function waitReady(){for(let i=0;i<20;i++){const s=await request('/api/edge/status');if(s.error)throw Error(s.error);if(s.frame_fresh)return;await new Promise(r=>setTimeout(r,500))}throw Error('相機尚未就緒，請查看設備狀態')}
+async function waitReady(){for(let i=0;i<60;i++){const s=await request('/api/edge/status');if(s.error)throw Error(s.error);if(s.frame_fresh)return;await new Promise(r=>setTimeout(r,500))}throw Error('相機尚未就緒，請查看設備狀態')}
 async function startPreview(){if(busy)return;if(dirty()&&!await ask('啟動預覽會重新讀取並放棄尚未儲存的修改，確定繼續？'))return;busy=true;renderEnabled();try{await request('/api/edge/start',{method:'POST'});await waitReady();await loadCamera()}catch(e){say(e.message)}finally{busy=false;renderEnabled()}}
 async function applyCamera(){if(busy||el('apply').disabled)return;const values={...savedValues};for(const [k] of camFields){const e=el(k);if(!e.disabled&&e.value!==initialValues[k]){if(!e.value||!e.checkValidity()){e.reportValidity();return}values[k]=Number(e.value)}}
- if(!await ask('套用相機設定會中斷取像並重新啟動相機，確定繼續？'))return;
- busy=true;renderEnabled();let stored=false;try{await request('/api/edge/config',{method:'PUT',body:JSON.stringify({restart:true,camera_controls_mode:el('mode').value,camera_control_values:values})});stored=true;baseline=form();await waitReady();await loadCamera();say('設定已儲存，相機已恢復取像；請確認預覽並重新驗證樣板')}catch(e){say((stored||e.configSaved?'設定已儲存，但相機尚未恢復：':'套用失敗：')+e.message)}finally{busy=false;renderEnabled()}}
+ if(!await ask('套用相機設定：支援的項目會即時更新；其餘項目會中斷取像並重啟相機，確定繼續？'))return;
+ busy=true;renderEnabled();let stored=false;try{await request('/api/edge/config',{method:'PUT',body:JSON.stringify({restart:true,camera_controls_mode:el('mode').value,camera_control_values:values})});stored=true;baseline=form();await waitReady();await loadCamera();say('設定已儲存，已確認相機持續取像；請確認預覽並重新驗證樣板')}catch(e){say((stored||e.configSaved?'設定已儲存，但無法確認取像狀態：':'套用失敗：')+e.message)}finally{busy=false;renderEnabled()}}
 async function leaveCamera(path){if(busy)return;if(dirty()&&!await ask('尚有未儲存的修改，確定離開？'))return;leaving=true;location.href=path+'?product_id='+(new URLSearchParams(location.search).get('product_id')||cameraState.product_id||0)}
 window.addEventListener('beforeunload',e=>{if((dirty()||busy)&&!leaving){e.preventDefault();e.returnValue=''}});
 refreshCamera();
