@@ -54,8 +54,8 @@ button,select,input{font:inherit}button{cursor:pointer}button:disabled{cursor:no
 
 @media(max-width:500px){.topbar>.chip{display:none}.mediaTable th,.mediaTable td{padding:8px}.mediaName{max-width:125px}.mini{padding:6px}.viewerTools{flex-wrap:wrap}}
 </style>
-<link rel="stylesheet" href="/static/apple.css?v=2.4.7">
-<link rel="stylesheet" href="/static/primary_nav.css?v=2.4.7"></head>
+<link rel="stylesheet" href="/static/apple.css?v=2.4.8">
+<link rel="stylesheet" href="/static/primary_nav.css?v=2.4.8"><link rel="stylesheet" href="/static/live_detail.css?v=2.4.8"></head>
 <body>
 <header class="topbar">
   <div class="brand">VisionEdge <small>產線視覺檢測</small></div>
@@ -88,10 +88,11 @@ button,select,input{font:inherit}button{cursor:pointer}button:disabled{cursor:no
           <div class="viewerTools">
             <span class="toolLabel">顯示內容</span>
             <div class="segment" aria-label="Live view source">
-              <button id="viewRaw" class="on" onclick="setView('raw')">原始畫面</button>
-              <button id="viewResult" onclick="setView('result')">檢測結果</button>
+              <button id="viewRaw" onclick="setView('raw')">原始畫面</button>
+              <button id="viewResult" class="on" onclick="setView('result')">檢測結果</button>
             </div>
           </div>
+          <button class="action" id="expandLive" onclick="toggleLiveExpanded()">放大畫面</button>
           <span id="verdict" class="state idle">WAIT</span>
         </div>
 
@@ -102,6 +103,7 @@ button,select,input{font:inherit}button{cursor:pointer}button:disabled{cursor:no
           <div class="overlay right"><span id="recBadge" class="badge rec" style="display:none">● REC <span id="recTimer">00:00</span></span></div>
         </div>
 
+        <section class="label-scores"><div class="score-heading"><b>Label 即時比對</b><button class="action" onclick="inspectionNavigate('/template-studio')">調整 Label 門檻</button></div><p class="subtle">長條為目前分數，直線為設定門檻；NG 樣板命中代表異常。</p><div id="labelScores" aria-label="Label 即時比對"></div></section>
         <div class="metrics">
           <div class="metric"><span>影像更新率</span><strong id="srcFps">0.0</strong></div>
           <div class="metric"><span>檢測更新率</span><strong id="inferFps">—</strong></div>
@@ -265,12 +267,13 @@ button,select,input{font:inherit}button{cursor:pointer}button:disabled{cursor:no
 
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-<script src="/static/visionedge_i18n.js?v=2.4.7"></script>
+<script src="/static/visionedge_i18n.js?v=2.4.8"></script>
+<script src="/static/live_detail.js?v=2.4.8"></script>
 <script>
 const $=id=>document.getElementById(id), A='/api/edge';
 const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 function inspectionNavigate(path){if(settingsBusy)return;if(settingsDirty&&!confirm('尚有未儲存的修改，確定離開？'))return;settingsDirty=false;location.href=path+'?product_id='+(lastStatus.product_id||0)}
-let lastStatus={},viewMode='raw',cameraBusy=false,recordBusy=false,settingsBusy=false,mediaVersion=-1,mediaTab='all',mediaRows=[],recSince=null,toastTimer=null,currentPage='live',settingsBaseline='',settingsDirty=false,lastWarning='',lastMediaRefresh=0;
+let lastStatus={},viewMode='result',cameraBusy=false,recordBusy=false,settingsBusy=false,mediaVersion=-1,mediaTab='all',mediaRows=[],recSince=null,toastTimer=null,currentPage='live',settingsBaseline='',settingsDirty=false,lastWarning='',lastMediaRefresh=0;
 
 async function req(url,opt={}){const options={cache:'no-store',signal:AbortSignal.timeout(15000),...opt};const r=await fetch(url,options),t=await r.text();let d={};try{d=t?JSON.parse(t):{}}catch{throw Error(t||r.statusText)}if(!r.ok)throw Error(d.error||r.statusText);return d}
 function message(s,kind=''){const x=$('toast');if(!s){x.className='toast';return}x.textContent=s;x.className='toast show '+kind;clearTimeout(toastTimer);toastTimer=setTimeout(()=>x.className='toast',4200)}
@@ -281,17 +284,17 @@ function mediaUrl(path,download=false){return `${A}/media/${String(path).split('
 function switchPage(page){currentPage=page;for(const p of ['live','history','media','settings']){$('page'+p[0].toUpperCase()+p.slice(1)).classList.toggle('active',p===page);$('page'+p[0].toUpperCase()+p.slice(1)+'Btn').classList.toggle('on',p===page)}if(page==='media')loadMedia(false);if(page==='history'){loadHistory(true);loadPackHistory(true)}}
 
 function setView(mode){if(mode==='result'&&Number(lastStatus.product_id||0)<=0){message('請先選擇檢測產品。','warn');return}viewMode=mode==='result'?'result':'raw';$('viewRaw').classList.toggle('on',viewMode==='raw');$('viewResult').classList.toggle('on',viewMode==='result');updateSnapshotLabel();reloadStream()}
-function updateSnapshotLabel(){$('snapshotBtn').textContent=viewMode==='result'?'儲存結果畫面':'儲存畫面'}
-function reloadStream(){if(!lastStatus.running){$('live').removeAttribute('src');return}$('live').src=`${A}/live.mjpg?mode=${viewMode}&t=${Date.now()}`}
+function updateSnapshotLabel(){$('snapshotBtn').textContent=effectiveLiveView()==='result'?'儲存結果畫面':'儲存畫面'}
+function reloadStream(){if(!lastStatus.running){$('live').removeAttribute('src');return}$('live').src=`${A}/live.mjpg?mode=${effectiveLiveView()}&t=${Date.now()}`}
 
 async function toggleCamera(){if(cameraBusy)return;if(lastStatus.recording){message('請先停止錄影。','warn');return}cameraBusy=true;renderStatus(lastStatus);try{const running=!!lastStatus.running;message(running?'正在停止相機…':'正在啟動相機…');const d=await req(`${A}/${running?'stop':'start'}`,{method:'POST'});if(d.success===false)throw Error(d.error||'Camera action failed');if(!running)setTimeout(reloadStream,250);else $('live').removeAttribute('src');message(running?'相機已停止。':'相機啟動中…','ok');await pollOnce()}catch(e){message(e.message,'err')}finally{cameraBusy=false;renderStatus(lastStatus)}}
-async function snapshotCurrent(){return snapshot(viewMode)}
+async function snapshotCurrent(){return snapshot(effectiveLiveView())}
 async function snapshot(mode){try{const d=await req(`${A}/snapshot`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode})});if(!d.success)throw Error(d.error||'Snapshot failed');message(`照片已儲存： ${d.path}`,'ok');await loadMedia(true)}catch(e){message(e.message,'err')}}
 async function toggleRecording(){if(recordBusy)return;recordBusy=true;renderStatus(lastStatus);try{if(lastStatus.recording){message('正在儲存錄影…');const d=await req(`${A}/record/stop`,{method:'POST'});if(!d.success)throw Error(d.error||'Stop recording failed');message(`錄影已儲存： ${d.relative_path||d.path||''}`,'ok');recSince=null}else{const mode=$('recordMode').value;message('正在開始錄影…');const d=await req(`${A}/record/start`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode})});if(!d.success)throw Error(d.error||'Start recording failed');message('錄影已開始。','ok');recSince=Date.now()}await pollOnce();await loadMedia(true)}catch(e){message(e.message,'err')}finally{recordBusy=false;renderStatus(lastStatus)}}
 
 function stateClass(status){status=String(status||'').toUpperCase();if(status==='LIVE'||status==='ON'||status==='RECORDING'||status==='PASS'||status==='COMPLETE')return'good';if(status==='ERROR'||status==='ALARM')return'bad';if(status==='STARTING'||status==='STOPPING'||status==='RECONNECTING'||status==='RUNNING'||status==='PREVIEW')return'warn';return'idle'}
 function renderStatus(d={}){
-  lastStatus=d;
+  const previousView=effectiveLiveView();lastStatus=d;
   const running=!!d.running,recording=!!d.recording,ready=!!d.inference_ready,hasFrame=!!d.frame_fresh,configured=Number(d.product_id||0)>0;
   const names={STOPPED:'已停止',STARTING:'啟動中',STOPPING:'停止中',LIVE:'運作中',RECONNECTING:'重新連線中',ERROR:'異常',OFFLINE:'連線中斷'};
   const status=d.status||'STOPPED',label=names[status]||status;
@@ -308,7 +311,8 @@ function renderStatus(d={}){
   $('recBadge').style.display=recording?'inline-flex':'none';recSince=recording&&d.recording_started_at?d.recording_started_at*1000:null;
   $('recTimer').textContent=recSince?fmtDuration((Date.now()-recSince)/1000):'—';
   $('viewResult').disabled=!ready;
-  if(!ready&&viewMode==='result'){viewMode='raw';$('viewRaw').classList.add('on');$('viewResult').classList.remove('on');updateSnapshotLabel();if(hasFrame)reloadStream()}
+  updateSnapshotLabel();if(previousView!==effectiveLiveView()&&hasFrame)reloadStream();renderLabelScores(d);
+  $('expandLive').disabled=!hasFrame&&!document.querySelector('.camera-card').classList.contains('live-expanded');
   const cam=$('cameraToggle');cam.disabled=cameraBusy||['STARTING','STOPPING','OFFLINE'].includes(status)||recording;
   cam.textContent=running?'■ 停止相機':'▶ 啟動相機';cam.className='action wide '+(running?'danger':'primary');$('cameraQuickState').textContent=label;
   $('cameraHint').textContent=recording?'停止錄影後，即可停止相機或套用設定。':hasFrame?'相機已就緒，可以拍照或錄影。':label;
@@ -382,6 +386,6 @@ for(const evt of ['change','input'])document.addEventListener(evt,e=>{if(e.targe
 (async()=>{await loadProducts();await loadConfig(false);await loadMedia(true);await pollOnce();updateSnapshotLabel();if(lastStatus.running)reloadStream();pollLoop()})().catch(e=>message(e.message,'err'));
 </script>
 <script src="/static/inspection.js"></script>
-<script src="/static/packaging_operator.js?v=2.4.7"></script>
+<script src="/static/packaging_operator.js?v=2.4.8"></script>
 </body>
 </html>
