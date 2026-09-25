@@ -42,5 +42,6 @@ def apply(source,mode,values):
   actual=int(source.get_property(SPECS[key][0]))
   if actual!=value:raise RuntimeError('QTI 相機控制讀回不一致: '+key)
   report['applied'][key]=actual
+  report['properties'][key]['current']=actual
  report['verified']=True
  return report

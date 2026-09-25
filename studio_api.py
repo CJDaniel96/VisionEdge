@@ -7,6 +7,27 @@ def version(row):
  return hashlib.sha256(json.dumps(dict(row),sort_keys=True,default=str).encode()).hexdigest()[:24]
 
 def register(app,base,edge):
+ def delete_studio_product(pid):
+  with edge.control_lock:
+   status=edge.status()
+   if edge.cfg.product_id==pid:
+    if status.get('running') or status.get('recording') or edge.inspection_active() or (edge.packaging and edge.packaging.cycle_id):
+     return jsonify(error='此產品正在使用中，請先結束檢測並停止相機，或切換檢測產品，再刪除'),409
+   db=base.get_db()
+   try:
+    if not db.execute('SELECT id FROM products WHERE id=?',(pid,)).fetchone():return jsonify(error='找不到產品'),404
+    # Snapshot samples in other products remain usable; live legacy references cannot be removed silently.
+    linked=db.execute('SELECT 1 FROM inspection_rule_items t JOIN inspection_rules i ON i.id=t.rule_id JOIN regions r ON r.id=t.region_id WHERE r.product_id=? AND i.product_id<>? LIMIT 1',(pid,pid)).fetchone()
+    if linked:return jsonify(error='其他產品的規則仍引用此產品的 Label，請先移除引用再刪除'),409
+    if edge.cfg.product_id==pid:
+     result=edge.update_config({'product_id':0})
+     if not result.get('success'):return jsonify(result),409
+    db.execute('DELETE FROM products WHERE id=?',(pid,));db.commit()
+    return jsonify(ok=True)
+   finally:db.close()
+ app.view_functions['delete_product']=delete_studio_product
+ @app.route('/camera-settings')
+ def camera_settings_page():return send_from_directory('static','camera_settings.html')
  @app.route('/api/products/<int:pid>/label-library/<int:rid>/image-test',methods=['POST'])
  def test_label_image(pid,rid):
   # Read-only diagnostics: no camera, SOP progression or inspection-history writes.

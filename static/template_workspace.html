@@ -171,11 +171,11 @@
   ::-webkit-scrollbar { width: 6px; } ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
 </style>
-<link rel="stylesheet" href="/static/workspace.css?v=2.4.6"><link rel="stylesheet" href="/static/primary_nav.css?v=2.4.6"></head>
+<link rel="stylesheet" href="/static/workspace.css?v=2.4.7"><link rel="stylesheet" href="/static/primary_nav.css?v=2.4.7"></head>
 <body class="workspace">
 <div id="app">
 
-<header><div class="logo">VisionEdge · 取像與樣板</div><span class="header-note">選產品 → 編輯樣板 → 儲存 → 試跑</span><div class="head-actions"><label class="languagePicker"><select data-i18n-language aria-label="Language" onchange="VisionEdgeI18n.setLanguage(this.value)"><option value="zh-Hant">繁體中文</option><option value="zh-Hans">简体中文</option><option value="en">English</option><option value="es">Español</option></select></label></div></header><nav class="primary-navigation" aria-label="主要導覽"><button type="button" class="primary-tab" onclick="workspaceNavigate('/edge')">即時檢測</button><button type="button" class="primary-tab" aria-current="page">取像與樣板</button><button type="button" class="primary-tab" onclick="workspaceNavigate('/flow-studio')">規則／流程</button></nav>
+<header><div class="logo">VisionEdge · 取像與樣板</div><span class="header-note">選產品 → 編輯樣板 → 儲存 → 試跑</span><div class="head-actions"><label class="languagePicker"><select data-i18n-language aria-label="Language" onchange="VisionEdgeI18n.setLanguage(this.value)"><option value="zh-Hant">繁體中文</option><option value="zh-Hans">简体中文</option><option value="en">English</option><option value="es">Español</option></select></label></div><button class="btn" onclick="workspaceNavigate('/camera-settings')">相機設定</button></header><nav class="primary-navigation" aria-label="主要導覽"><button type="button" class="primary-tab" onclick="workspaceNavigate('/edge')">即時檢測</button><button type="button" class="primary-tab" aria-current="page">取像與樣板</button><button type="button" class="primary-tab" onclick="workspaceNavigate('/flow-studio')">規則／流程</button></nav>
 
 <div class="main">
 
@@ -201,7 +201,7 @@
       <div style="width:1px;height:20px;background:var(--border);margin:0 4px;"></div>
 
       <div id="editControls" style="display:none;align-items:center;gap:8px;flex-wrap:wrap;">
-<button class="btn primary" id="captureEdgeBtn" onclick="workspaceCapture()">從相機擷取</button><button class="btn" onclick="workspaceCameraOpen()">相機取像設定</button>        <label class="btn">
+<button class="btn primary" id="captureEdgeBtn" onclick="workspaceCapture()">從相機擷取</button>        <label class="btn">
           載入圖片／影片
           <input type="file" id="mediaInput" accept="video/*,image/*" onchange="onMediaPicked(event)" style="display:none">
         </label>
@@ -423,7 +423,7 @@
 </div>
 
 <!-- Hidden video element for frame capture -->
-<script src="/static/visionedge_i18n.js?v=2.4.6"></script><script>
+<script src="/static/visionedge_i18n.js?v=2.4.7"></script><script>
 // ══════════════════════════════════════════════════════════════
 // Design principle:
 //  state.regions x/y/w/h are always original pixel coords
@@ -601,6 +601,7 @@ function renderProductList() {
         <div class="p-name" data-i18n-skip>${esc(p.name||'—')}</div>
         ${p.has_ref_img ? '<div class="p-hint">已有取樣畫面</div>' : ''}
       </div>
+      <button class="btn sm" onclick="delProduct(event,${p.id})" aria-label="刪除產品">刪除</button>
       `;
     d.addEventListener('click', ()=>selectProduct(p));
     el.appendChild(d);
@@ -2117,12 +2118,12 @@ document.addEventListener('DOMContentLoaded', init);
       <p class="hint">變更後請重新擷取並驗證樣板；取像與正式檢測共用相機設定。</p>
       <p class="hint" id="qtiApplied">—</p>
       </div>
-</dialog><dialog id="testDialog"><div class="dialog-title">試跑樣板<button class="btn" onclick="document.getElementById('testDialog').close()">關閉</button></div><p>只測每個 Label；NG 命中代表找到異常，不代表整件合格。</p><div id="labelTestResults"></div></dialog><script src="/static/workspace.js?v=2.4.6-r4"></script><script src="/static/workspace_zoom.js?v=2.4.6-r3"></script><dialog id="imageTestDialog"><div class="dialog-title">圖片驗證<button class="btn" onclick="document.getElementById('imageTestDialog').close()">關閉</button></div>
+</dialog><dialog id="testDialog"><div class="dialog-title">試跑樣板<button class="btn" onclick="document.getElementById('testDialog').close()">關閉</button></div><p>只測每個 Label；NG 命中代表找到異常，不代表整件合格。</p><div id="labelTestResults"></div></dialog><script src="/static/workspace.js?v=2.4.7-r4"></script><script src="/static/workspace_zoom.js?v=2.4.7-r3"></script><dialog id="imageTestDialog"><div class="dialog-title">圖片驗證<button class="btn" onclick="document.getElementById('imageTestDialog').close()">關閉</button></div>
 <p class="hint">只驗證單一 Label 是否符合，不代表整件產品合格。NG Label 符合代表找到異常。測試不會修改樣板或流程。</p>
 <label>選擇 Label <select id="imageTestLabel" data-i18n-skip></select></label>
 <p><label class="btn">載入測試圖片<input id="imageTestFiles" type="file" accept="image/png,image/jpeg" multiple onchange="runImageTests(this.files)" style="display:none"></label></p>
 <p class="hint">可選多張 PNG／JPEG，最多 20 張，每張 20 MB。請使用與取樣畫面相同尺寸及視角的完整圖片。</p>
 <p id="imageTestStatus" role="status"></p><div id="imageTestResults"></div><img id="imageTestPreview" hidden alt="測試圖片與比對位置" style="max-width:100%;max-height:55vh;object-fit:contain;margin-top:12px">
-</dialog><script src="/static/image_test.js?v=2.4.6"></script></body>
+</dialog><script src="/static/image_test.js?v=2.4.7"></script></body>
 </html>
 

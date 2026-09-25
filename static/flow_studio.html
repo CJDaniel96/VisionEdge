@@ -53,15 +53,15 @@ select.mini-select{background:#06121c;border:1px solid var(--line);color:var(--t
 
 #createProductBtn{white-space:nowrap;flex-shrink:0}.head-actions .optional-nav{display:inline-flex!important} .head-actions{gap:5px} @media(max-width:600px){header .sub{display:none}header .brand{font-size:14px}.head-actions .btn{padding:8px;font-size:11px}}
 </style>
-<link rel="stylesheet" href="/static/apple.css?v=2.4.5">
-<link rel="stylesheet" href="/static/primary_nav.css?v=2.4.5"></head>
+<link rel="stylesheet" href="/static/apple.css?v=2.4.7">
+<link rel="stylesheet" href="/static/primary_nav.css?v=2.4.7"></head>
 <body>
 <script>if(location.pathname.endsWith("/template-studio"))document.body.classList.add("library-mode");</script>
 <div class="page">
 <header>
   <div class="brand"><span class="flow-only">VisionEdge · 規則／流程</span><span class="library-only">VisionEdge · 取像與樣板</span></div><div class="sub">取像與樣板 → 規則／流程 → 試跑與套用</div>
   <div class="head-actions"><span class="dirty" id="dirtyState"></span><label class="languagePicker" title="Language / 語言"><span aria-hidden="true">🌐</span><select data-i18n-language aria-label="Language" onchange="VisionEdgeI18n.setLanguage(this.value)"><option value="zh-Hant">繁體中文</option><option value="zh-Hans">简体中文</option><option value="en">English</option><option value="es">Español</option></select></label><button class="btn" onclick="reloadAll(true)">重新載入</button><button class="btn primary flow-only" id="saveBtn" onclick="saveAll()">儲存流程並套用</button></div>
-</header><nav class="primary-navigation" aria-label="主要導覽"><button type="button" class="primary-tab" onclick="libraryNavigate('/edge')">即時檢測</button><button type="button" class="primary-tab" onclick="libraryNavigate('/template-studio')">取像與樣板</button><button type="button" class="primary-tab" aria-current="page">規則／流程</button></nav>
+<button class="btn" onclick="libraryNavigate('/camera-settings')">相機設定</button></header><nav class="primary-navigation" aria-label="主要導覽"><button type="button" class="primary-tab" onclick="libraryNavigate('/edge')">即時檢測</button><button type="button" class="primary-tab" onclick="libraryNavigate('/template-studio')">取像與樣板</button><button type="button" class="primary-tab" aria-current="page">規則／流程</button></nav>
 <main>
   <aside>
     <section class="card"><div class="card-head">產品</div><div class="card-body">
@@ -183,7 +183,7 @@ select.mini-select{background:#06121c;border:1px solid var(--line);color:var(--t
       <p class="hint">這裡設定單張畫面的合格條件。啟用依序檢測時，SOP 仍須完成所有必要步驟。</p>
     </div>
     <div class="notice">一般檢查只設定檢查組；啟用「依步驟順序檢測」後，各組才依序執行。</div><p class="hint">本產品 Label 修改會更新本產品規則；其他產品匯入的樣板保留副本，按 ↻ 才更新。</p>
-    <div class="flow-toolbar"><button class="btn" onclick="addStep()">＋ 新增檢查組</button><button class="btn" onclick="validateAndReport()">檢查流程</button><span class="flow-help">也可在拖拉把手上按 Alt＋↑／↓排序</span></div>
+    <div class="flow-toolbar"><button class="btn" onclick="addStep()">＋ 新增檢查組</button><button class="btn" onclick="validateAndReport()">檢查流程</button><button class="btn danger" onclick="clearFlow()">清空流程</button><span class="flow-help">也可在拖拉把手上按 Alt＋↑／↓排序</span></div>
     <div id="steps" class="steps-wrap"><div class="empty">請先選擇產品</div></div>
   </div></section>
   </div>
@@ -200,7 +200,7 @@ select.mini-select{background:#06121c;border:1px solid var(--line);color:var(--t
 </div></div>
 <div class="toast" id="toast"></div>
 
-<script src="/static/visionedge_i18n.js?v=2.4.5"></script>
+<script src="/static/visionedge_i18n.js?v=2.4.7"></script>
 <script>
 function updateRuleExplanation(){
  const mode=document.getElementById('finalLogic').value;
@@ -257,7 +257,9 @@ function duplicateStep(i){const src=ST.steps[i];const clone=normalizeStep(JSON.p
 function updateStep(i,k,v){if(['step_no','min_consecutive_hits','hold_ms','timeout_sec'].includes(k))v=Number(v||0);if(['enabled','required','allow_out_of_order','latch_when_done','alarm_if_missing'].includes(k))v=!!v;ST.steps[i][k]=v;renderSteps(false);markDirty()}
 function moveStep(i,d){const j=i+d;if(j<0||j>=ST.steps.length)return;[ST.steps[i],ST.steps[j]]=[ST.steps[j],ST.steps[i]];reindexSteps();renderSteps();markDirty()}
 function moveStepTo(from,to){from=Number(from);to=Number(to);if(!Number.isInteger(from)||!Number.isInteger(to)||from<0||to<0||from>=ST.steps.length||to>=ST.steps.length||from===to)return;const[x]=ST.steps.splice(from,1);ST.steps.splice(to,0,x);reindexSteps();renderSteps();markDirty()}
-function deleteStep(i){if(confirm(`刪除步驟「${ST.steps[i].name}」？`)){ST.steps.splice(i,1);reindexSteps();renderSteps();markDirty()}}
+function disableEmptyFlow(){document.getElementById('packEnabled').checked=false;packChange(false);setOn('swEnabled',false);toast('流程已清空並停用依序檢測；請儲存並套用，樣板會保留')}
+function clearFlow(){if(!ST.productId)return;if(!confirm('清空此產品的所有檢查組與流程步驟？樣板與 Label 會保留，儲存並套用後生效。'))return;ST.steps=[];disableEmptyFlow();reindexSteps();renderSteps();markDirty()}
+function deleteStep(i){if(confirm(`刪除步驟「${ST.steps[i].name}」？`)){ST.steps.splice(i,1);if(!ST.steps.length)disableEmptyFlow();reindexSteps();renderSteps();markDirty()}}
 function sampleLabel(s){if(s.existing_sample_id&&Number(s.source_product_id)!==Number(ST.productId))return s.sample_name;const t=ST.templates.find(x=>Number(x.id)===Number(s.source_region_id));return t?`${t.product_serial} / ${t.label}`:(s.sample_name||`Local Sample ${s.existing_sample_id||''}`)}
 function refreshSampleCopy(i,j){const s=ST.steps[i].samples[j],t=ST.templates.find(x=>Number(x.id)===Number(s.source_region_id));if(!t){toast('來源樣板已不存在，保留目前副本',true);return}if(!confirm('以來源目前的影像、門檻與位置設定更新此副本？'))return;s.existing_sample_id=null;s.sample_name=t.label;s.threshold=t.threshold;s.search_margin=t.search_margin;markDirty();renderSteps()}
 function removeSample(i,j){ST.steps[i].samples.splice(j,1);renderSteps();markDirty()}
@@ -1214,8 +1216,8 @@ async function studioMutation(action){
 async function saveAll(){return studioMutation(saveAllInternal)}
 async function vlAssignToStep(i){return studioMutation(()=>vlAssignToStepInternal(i))}
 </script>
-<script src="/static/template_studio.js?v=2.4.5"></script>
-<script src="/static/label_zoom.js?v=2.4.5"></script>
-<script src="/static/packaging_setup.js?v=2.4.5"></script>
+<script src="/static/template_studio.js?v=2.4.7"></script>
+<script src="/static/label_zoom.js?v=2.4.7"></script>
+<script src="/static/packaging_setup.js?v=2.4.7"></script>
 </body>
 </html>

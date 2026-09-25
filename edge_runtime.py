@@ -1189,7 +1189,7 @@ class EdgeRuntime:
         if was_running:
             started = self.start()
             if not started.get('success'):
-                return started
+                  return {**started, 'config_saved': True}
         return {'success': True, 'config': self.cfg.public(), 'restart_required': False}
 
     @serialized_control

@@ -160,3 +160,16 @@ function workspaceConfirm(message){return new Promise(resolve=>{
  no.onclick=()=>done(false);yes.onclick=()=>done(true);d.oncancel=e=>{e.preventDefault();done(false)};
  d.append(no,yes);document.body.appendChild(d);d.showModal();no.focus();
 })}
+
+// Product deletion is a separate, confirmed operation from clearing its template.
+delProduct=async function(event,pid){
+ event.stopPropagation();if(workspaceBusy)return;
+ const p=S.products.find(p=>p.id===pid);if(!p)return;
+ if(workspacePending()&&!await workspaceConfirm('尚有未儲存的修改，確定離開？'))return;
+ if(!await workspaceConfirm('刪除產品「'+p.serial+'」及其所有樣板、Label 與流程？此操作無法復原。'))return;
+ workspaceLock(true);
+ try{await studioRequest(`/api/products/${pid}`,{method:'DELETE'});
+  if(S.selectedPid===pid){resetAll();S.selectedPid=null;S.editMode=false;workspaceBaseline='';workspaceVersion='';}
+  await loadProducts();applyEditModeUI();toast('產品已刪除');
+ }catch(e){toast(e.message)}finally{workspaceLock(false)}
+};
